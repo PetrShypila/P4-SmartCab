@@ -10,29 +10,47 @@ class LearningAgent(Agent):
         super(LearningAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
         self.color = 'red'  # override color
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
-        # TODO: Initialize any additional variables here
+        self.qvals = {}
+        self.time = 0
+        self.states = {}
 
     def reset(self, destination=None):
         self.planner.route_to(destination)
-        # TODO: Prepare for a new trip; reset any variables here, if required
+
+    def best_action(self, s):
+        qvals = { a: self.qvals.get((s, a), 0) for a in Environment.valid_actions }
+        best_a = [a for a in Environment.valid_actions if qvals[a] == max(qvals.values())]
+
+        return random.choice(best_a)
+
+    def update_qvals(self, s, a, r):
+        learning_rate = 1.0/self.time
+        self.qvals[(s, a)] = (1 - learning_rate) * self.qvals.get((s, a), 0) + learning_rate * r
 
     def update(self, t):
-        # Gather inputs
-        self.next_waypoint = self.planner.next_waypoint()  # from route planner, also displayed by simulator
+        self.time += 1
+        # from route planner, also displayed by simulator
+        self.next_waypoint = self.planner.next_waypoint()
+        # gather inputs
         inputs = self.env.sense(self)
         deadline = self.env.get_deadline(self)
 
-        # TODO: Update state
-        
-        # TODO: Select action according to your policy
-        action = None
+        # Update state
+        self.state = (inputs['light'], inputs['oncoming'], inputs['left'], self.next_waypoint)
+        # state visit counter
+        self.states[self.state] = self.states.get(self.state, 0) + 1
 
-        # Execute action and get reward
-        reward = self.env.act(self, action)
+        a = self.best_action(self.state)
+        r = self.env.act(self, a)
 
-        # TODO: Learn policy based on state, action, reward
+        if r < 0:
+            print "\npenalty!"
+            print "light: {0}, oncoming: {1}, left: {2}, waypoint: {3}".format(*self.state)
+            print "visit number {} to state".format(self.states[self.state])
+            print "action: {}".format(a)
+            print "reward: {}".format(r)
 
-        print "LearningAgent.update(): deadline = {}, inputs = {}, action = {}, reward = {}".format(deadline, inputs, action, reward)  # [debug]
+        self.update_qvals(self.state, a, r)
 
 
 def run():
