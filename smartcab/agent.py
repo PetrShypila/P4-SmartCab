@@ -12,20 +12,22 @@ class LearningAgent(Agent):
         self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
         self.qvals = {}
         self.time = 0
-        self.states = {}
 
     def reset(self, destination=None):
+        self.time = 0
+        self.qvals = {}
+        self.next_waypoint = None
         self.planner.route_to(destination)
 
-    def best_action(self, s):
+    def optimal_a(self, s):
         qvals = { a: self.qvals.get((s, a), 0) for a in Environment.valid_actions }
-        best_a = [a for a in Environment.valid_actions if qvals[a] == max(qvals.values())]
+        optimal_as = [a for a in Environment.valid_actions if qvals[a] == max(qvals.values())]
+        # choose random action of there is several with same q-value
+        return random.choice(optimal_as)
 
-        return random.choice(best_a)
-
-    def update_qvals(self, s, a, r):
+    def add_qval(self, s, a, r):
         learning_rate = 1.0/self.time
-        self.qvals[(s, a)] = (1 - learning_rate) * self.qvals.get((s, a), 0) + learning_rate * r
+        self.qvals[(s, a)] = learning_rate * r + (1 - learning_rate) * self.qvals.get((s, a), 0)
 
     def update(self, t):
         self.time += 1
@@ -33,24 +35,22 @@ class LearningAgent(Agent):
         self.next_waypoint = self.planner.next_waypoint()
         # gather inputs
         inputs = self.env.sense(self)
-        deadline = self.env.get_deadline(self)
 
         # Update state
         self.state = (inputs['light'], inputs['oncoming'], inputs['left'], self.next_waypoint)
-        # state visit counter
-        self.states[self.state] = self.states.get(self.state, 0) + 1
 
-        a = self.best_action(self.state)
+        # choose optimal action
+        a = self.optimal_a(self.state)
+        # Get a reward
         r = self.env.act(self, a)
+        # calculate q-value
+        self.add_qval(self.state, a, r)
 
         if r < 0:
-            print "\npenalty!"
+            print "\nWARNING: R < 0"
             print "light: {0}, oncoming: {1}, left: {2}, waypoint: {3}".format(*self.state)
-            print "visit number {} to state".format(self.states[self.state])
             print "action: {}".format(a)
             print "reward: {}".format(r)
-
-        self.update_qvals(self.state, a, r)
 
 
 def run():
