@@ -14,13 +14,12 @@ class LearningAgent(Agent):
         self.time = 0
 
     def reset(self, destination=None):
-        self.time = 0
-        self.qvals = {}
-        self.next_waypoint = None
         self.planner.route_to(destination)
 
     def optimal_a(self, s):
+        # get q-value for each action
         qvals = { a: self.qvals.get((s, a), 0) for a in Environment.valid_actions }
+        # collect optimal actions with max q-value
         optimal_as = [a for a in Environment.valid_actions if qvals[a] == max(qvals.values())]
         # choose random action of there is several with same q-value
         return random.choice(optimal_as)
@@ -63,7 +62,7 @@ def run():
     # NOTE: You can set enforce_deadline=False while debugging to allow longer trials
 
     # Now simulate it
-    sim = Simulator(e, update_delay=0.5, display=True)  # create simulator (uses pygame when display=True, if available)
+    sim = Simulator(e, update_delay=0.01, display=False)  # create simulator (uses pygame when display=True, if available)
     # NOTE: To speed up simulation, reduce update_delay and/or set display=False
 
     sim.run(n_trials=100)  # run for a specified number of trials
