@@ -11,6 +11,8 @@ def run(class_name):
     all_average_trial_time = []
     all_success_rates = []
 
+    print class_name, "agent is chosen"
+
     for x in range(0, 20):
         print "Trial:", x
         # Set up environment and agent

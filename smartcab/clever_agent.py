@@ -3,7 +3,9 @@ from random_agent import RandomAgent
 
 
 class CleverAgent(RandomAgent):
-
+    """
+    Agent with configured Q-Learning function, which choses an optimal actional based on its Q-value.
+    """
     def optimal_a(self, s):
         # get q-value for each action
         qvals = { a: self.qvals.get((s, a), 0) for a in self.valid_actions }
