@@ -1,73 +1,42 @@
-import random
-from environment import Agent, Environment
-from planner import RoutePlanner
+import sys, random_agent, clever_agent, positive_agent, learner_agent
+import numpy as np
+from environment import Environment
 from simulator import Simulator
 
-class LearningAgent(Agent):
-    """An agent that learns to drive in the smartcab world."""
 
-    def __init__(self, env):
-        super(LearningAgent, self).__init__(env)  # sets self.env = env, state = None, next_waypoint = None, and a default color
-        self.color = 'red'  # override color
-        self.planner = RoutePlanner(self.env, self)  # simple route planner to get next_waypoint
-        self.qvals = {}
-        self.time = 0
-
-    def reset(self, destination=None):
-        self.planner.route_to(destination)
-
-    def optimal_a(self, s):
-        # get q-value for each action
-        qvals = { a: self.qvals.get((s, a), 0) for a in Environment.valid_actions }
-        # collect optimal actions with max q-value
-        optimal_as = [a for a in Environment.valid_actions if qvals[a] == max(qvals.values())]
-        # choose random action of there is several with same q-value
-        return random.choice(optimal_as)
-
-    def add_qval(self, s, a, r):
-        learning_rate = 1.0/self.time
-        self.qvals[(s, a)] = learning_rate * r + (1 - learning_rate) * self.qvals.get((s, a), 0)
-
-    def update(self, t):
-        self.time += 1
-        # from route planner, also displayed by simulator
-        self.next_waypoint = self.planner.next_waypoint()
-        # gather inputs
-        inputs = self.env.sense(self)
-
-        # Update state
-        self.state = (inputs['light'], inputs['oncoming'], inputs['left'], self.next_waypoint)
-
-        # choose optimal action
-        a = self.optimal_a(self.state)
-        # Get a reward
-        r = self.env.act(self, a)
-        # calculate q-value
-        self.add_qval(self.state, a, r)
-
-        if r < 0:
-            print "\nWARNING: R < 0"
-            print "light: {0}, oncoming: {1}, left: {2}, waypoint: {3}".format(*self.state)
-            print "action: {}".format(a)
-            print "reward: {}".format(r)
-
-
-def run():
+def run(class_name):
     """Run the agent for a finite number of trials."""
+    trials = 100
+    all_penalties = []
+    all_average_trial_time = []
+    all_success_rates = []
 
-    # Set up environment and agent
-    e = Environment()  # create environment (also adds some dummy traffic)
-    a = e.create_agent(LearningAgent)  # create agent
-    e.set_primary_agent(a, enforce_deadline=True)  # specify agent to track
-    # NOTE: You can set enforce_deadline=False while debugging to allow longer trials
+    for x in range(0, 20):
+        print "Trial:", x
+        # Set up environment and agent
+        e = Environment()  # create environment (also adds some dummy traffic)
+        agent_class = eval(class_name)
+        agent = e.create_agent(agent_class)  # create agent
+        e.set_primary_agent(agent, enforce_deadline=True)  # specify agent to track
 
-    # Now simulate it
-    sim = Simulator(e, update_delay=0.01, display=False)  # create simulator (uses pygame when display=True, if available)
-    # NOTE: To speed up simulation, reduce update_delay and/or set display=False
+        # Now simulate it
+        sim = Simulator(e, update_delay=0.0, display=False)  # create simulator (uses pygame when display=True, if available)
 
-    sim.run(n_trials=100)  # run for a specified number of trials
-    # NOTE: To quit midway, press Esc or close pygame window, or hit Ctrl+C on the command-line
+        sim.run(n_trials=trials)  # run for a specified number of trials
 
+        all_penalties.append(agent.penalties)
+        all_average_trial_time.append(agent.time/float(trials))
+        all_success_rates.append(float(trials-agent.aborted_trials)/trials)
+
+    print ""
+    print "Mean penalty per {} trials:".format(trials), np.mean(all_penalties)
+    print "Std.Dev. penalty per {} trials:".format(trials), np.std(all_penalties)
+    print ""
+    print "Mean trial time:", np.mean(all_average_trial_time)
+    print "Std.Dev. trial time:", np.std(all_average_trial_time)
+    print ""
+    print "Mean success rate per {} trials:".format(trials), np.mean(all_success_rates)
+    print "Std.Dev. success rate per {} trials:".format(trials), np.std(all_success_rates)
 
 if __name__ == '__main__':
-    run()
+    run(sys.argv[1])
