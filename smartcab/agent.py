@@ -39,4 +39,6 @@ def run(class_name):
     print "Std.Dev. success rate per {} trials:".format(trials), np.std(all_success_rates)
 
 if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        sys.argv.append("learner_agent.LearnerAgent")
     run(sys.argv[1])
